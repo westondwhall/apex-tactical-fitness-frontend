@@ -518,7 +518,7 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
                 const SizedBox(height: 16),
                 const Center(
                   child: Text(
-                    '© 2026 Weston Hall. All rights reserved.',
+                    '© 2026 APEX TACTICAL PERFORMANCE. ALL RIGHTS RESERVED',
                     style: TextStyle(color: Colors.grey, fontSize: 11),
                   ),
                 ),
