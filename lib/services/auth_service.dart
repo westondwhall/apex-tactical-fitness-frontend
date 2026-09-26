@@ -9,6 +9,49 @@ import 'storage_service.dart';
 class AuthService {
   AuthService();
 
+  Future<void> logout() async {
+    await StorageService.deleteToken();
+  }
+
+  Future<Map<String, dynamic>> deleteUserAccount() async {
+    try {
+      final token = await StorageService.getToken();
+      final response = await http.delete(
+        Uri.parse('${ApiConstants.baseUrl}/auth/account'),
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          if (token != null && token.isNotEmpty)
+            'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        return {'success': false, 'error': 'Account deletion failed'};
+      }
+
+      await StorageService.deleteToken();
+      return {'success': true};
+    } catch (e) {
+      debugPrint('AuthService account deletion error: $e');
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> reauthenticateAndDeleteUserAccount(
+    String email,
+    String password,
+  ) async {
+    final authResult = await login(email, password);
+    if (authResult['success'] != true) {
+      return {
+        'success': false,
+        'error': authResult['error'] ?? 'Reauthentication failed',
+      };
+    }
+
+    return deleteUserAccount();
+  }
+
   Future login(String email, String password) async {
     try {
       final response = await http.post(
