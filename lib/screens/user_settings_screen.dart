@@ -1,12 +1,9 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
-import '../constants/api_constants.dart';
 import '../services/auth_service.dart';
 import '../services/storage_service.dart';
+import 'legal_document_screen.dart';
 import 'profile_edit_screen.dart';
 
 class UserSettingsScreen extends StatefulWidget {
@@ -68,25 +65,10 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
     }
   }
 
-  void _showSubscriptionInfo(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (BuildContext dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF23272D),
-        title: const Text(
-          'Subscription & Billing',
-          style: TextStyle(color: Color(0xFFE5A93B)),
-        ),
-        content: const Text(
-          'Subscriptions are securely managed directly through your device account. Please visit your Apple App Store ID or Google Play Store subscription settings to view, modify, or cancel your active plan.',
-          style: TextStyle(color: Colors.white70, height: 1.4),
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('OK', style: TextStyle(color: Color(0xFFE5A93B))),
-          ),
-        ],
+  void _openLegalDocument(LegalDocument document) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => LegalDocumentScreen(document: document),
       ),
     );
   }
@@ -102,65 +84,6 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => ProfileEditScreen(authToken: token)),
     );
-  }
-
-  Future<void> _fetchAndShowPolicy(
-    BuildContext context,
-    String endpoint,
-    String title,
-  ) async {
-    try {
-      final response = await http.get(
-        Uri.parse('${ApiConstants.baseUrl}/$endpoint'),
-      );
-      String content = 'Policy document could not be loaded.';
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        if (endpoint == 'terms') {
-          content = data['terms']?.toString() ?? content;
-        } else if (endpoint == 'billing-policy') {
-          content = data['billing_policy']?.toString() ?? content;
-        } else if (endpoint == 'privacy-policy') {
-          content = data['privacy_policy']?.toString() ?? content;
-        }
-      }
-
-      if (!context.mounted) return;
-
-      showDialog<void>(
-        context: context,
-        builder: (BuildContext dialogContext) => AlertDialog(
-          backgroundColor: const Color(0xFF23272D),
-          title: Text(title, style: const TextStyle(color: Color(0xFFE5A93B))),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: SingleChildScrollView(
-              child: Text(
-                content,
-                style: const TextStyle(color: Colors.white70, height: 1.4),
-              ),
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text(
-                'Close',
-                style: TextStyle(color: Color(0xFFE5A93B)),
-              ),
-            ),
-          ],
-        ),
-      );
-    } catch (_) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to connect to backend policy service.'),
-        ),
-      );
-    }
   }
 
   Future<void> _confirmAndDeleteAccount(BuildContext context) async {
@@ -415,7 +338,7 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
                   color: Colors.grey,
                   size: 16,
                 ),
-                onTap: () => _showSubscriptionInfo(context),
+                onTap: () => _openLegalDocument(LegalDocuments.billing),
               ),
             ],
           ),
@@ -553,18 +476,9 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
                   ),
                 ),
                 const Divider(color: Colors.white24, height: 20),
-                _buildPolicyLink(
-                  endpoint: 'terms',
-                  title: 'Terms of Service & Liability Waiver',
-                ),
-                _buildPolicyLink(
-                  endpoint: 'billing-policy',
-                  title: 'Billing, Subscription & Cancellation Policy',
-                ),
-                _buildPolicyLink(
-                  endpoint: 'privacy-policy',
-                  title: 'Privacy Policy',
-                ),
+                _buildPolicyLink(document: LegalDocuments.terms),
+                _buildPolicyLink(document: LegalDocuments.billing),
+                _buildPolicyLink(document: LegalDocuments.privacy),
                 const Divider(color: Colors.white24, height: 20),
                 const Text(
                   'Support & Contact',
@@ -623,17 +537,20 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
     );
   }
 
-  Widget _buildPolicyLink({required String endpoint, required String title}) {
+  Widget _buildPolicyLink({required LegalDocument document}) {
     return ListTile(
       dense: true,
       contentPadding: EdgeInsets.zero,
-      title: Text(title, style: const TextStyle(color: Color(0xFFE5A93B))),
+      title: Text(
+        document.title,
+        style: const TextStyle(color: Color(0xFFE5A93B)),
+      ),
       trailing: const Icon(
         Icons.open_in_new,
         color: Color(0xFFE5A93B),
         size: 16,
       ),
-      onTap: () => _fetchAndShowPolicy(context, endpoint, title),
+      onTap: () => _openLegalDocument(document),
     );
   }
 

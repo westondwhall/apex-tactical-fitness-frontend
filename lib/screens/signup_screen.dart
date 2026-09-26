@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../constants/api_constants.dart';
+import 'legal_document_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -27,57 +28,12 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _acceptedPrivacy = false;
   bool _isLoading = false;
 
-  Future<void> _fetchAndShowPolicy(
-    BuildContext context,
-    String endpoint,
-    String title,
-  ) async {
-    try {
-      final response = await http.get(
-        Uri.parse('${ApiConstants.baseUrl}/$endpoint'),
-      );
-      String content = 'Policy could not be loaded.';
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        content =
-            data[endpoint.replaceAll('-', '_')]?.toString() ??
-            (data.isNotEmpty ? data.values.first.toString() : content);
-      }
-
-      if (!context.mounted) return;
-
-      showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          backgroundColor: const Color(0xFF23272D),
-          title: Text(title, style: const TextStyle(color: Color(0xFFE5A93B))),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: SingleChildScrollView(
-              child: Text(
-                content,
-                style: const TextStyle(color: Colors.white70, height: 1.4),
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                'Close',
-                style: TextStyle(color: Color(0xFFE5A93B)),
-              ),
-            ),
-          ],
-        ),
-      );
-    } catch (_) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to load policy document.')),
-      );
-    }
+  void _openLegalDocument(LegalDocument document) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => LegalDocumentScreen(document: document),
+      ),
+    );
   }
 
   Future<void> _registerUser() async {
@@ -203,36 +159,24 @@ class _SignupScreenState extends State<SignupScreen> {
               const SizedBox(height: 16),
               _buildPolicyCheckbox(
                 value: _acceptedTerms,
-                label: 'I accept the Terms of Service & Liability Waiver',
+                label: 'I agree to the End-User License Agreement and Terms of Service',
                 onChanged: (value) =>
                     setState(() => _acceptedTerms = value ?? false),
-                onTap: () => _fetchAndShowPolicy(
-                  context,
-                  'terms',
-                  'Terms of Service & Liability Waiver',
-                ),
+                onTap: () => _openLegalDocument(LegalDocuments.terms),
               ),
               _buildPolicyCheckbox(
                 value: _acceptedBilling,
-                label: 'I accept the Billing & Cancellation Policy',
+                label: 'I agree to the Billing, Subscription, and Cancellation Policy',
                 onChanged: (value) =>
                     setState(() => _acceptedBilling = value ?? false),
-                onTap: () => _fetchAndShowPolicy(
-                  context,
-                  'billing-policy',
-                  'Billing, Subscription & Cancellation Policy',
-                ),
+                onTap: () => _openLegalDocument(LegalDocuments.billing),
               ),
               _buildPolicyCheckbox(
                 value: _acceptedPrivacy,
                 label: 'I accept the Privacy Policy',
                 onChanged: (value) =>
                     setState(() => _acceptedPrivacy = value ?? false),
-                onTap: () => _fetchAndShowPolicy(
-                  context,
-                  'privacy-policy',
-                  'Privacy Policy',
-                ),
+                onTap: () => _openLegalDocument(LegalDocuments.privacy),
               ),
               const SizedBox(height: 24),
               SizedBox(
@@ -275,14 +219,17 @@ class _SignupScreenState extends State<SignupScreen> {
           onChanged: onChanged,
         ),
         Expanded(
-          child: GestureDetector(
-            onTap: onTap,
+          child: TextButton(
+            onPressed: onTap,
+            style: TextButton.styleFrom(
+              alignment: Alignment.centerLeft,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              foregroundColor: const Color(0xFFE5A93B),
+            ),
             child: Text(
               label,
-              style: const TextStyle(
-                color: Color(0xFFE5A93B),
-                decoration: TextDecoration.underline,
-              ),
+              textAlign: TextAlign.left,
+              style: const TextStyle(decoration: TextDecoration.underline),
             ),
           ),
         ),
