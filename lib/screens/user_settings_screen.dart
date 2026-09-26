@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../constants/api_constants.dart';
+import '../services/auth_service.dart';
 import '../services/storage_service.dart';
 import 'profile_edit_screen.dart';
 
@@ -163,60 +164,103 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
   }
 
   Future<void> _confirmAndDeleteAccount(BuildContext context) async {
-    await showDialog<void>(
-      context: context,
-      builder: (BuildContext dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF23272D),
-        title: const Text(
-          'Terminate Account',
-          style: TextStyle(
-            color: Colors.redAccent,
-            fontWeight: FontWeight.bold,
-          ),
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (BuildContext dialogContext) => StatefulBuilder(
+          builder: (BuildContext dialogContext, StateSetter setDialogState) =>
+              AlertDialog(
+                backgroundColor: const Color(0xFF23272D),
+                title: const Text(
+                  'Terminate Account',
+                  style: TextStyle(
+                    color: Colors.redAccent,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'Warning: This action is permanent. All your profile data, workout logs, notes, and training history will be permanently deleted and cannot be recovered.',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        autofillHints: const [AutofillHints.email],
+                        onChanged: (_) => setDialogState(() {}),
+                        decoration: const InputDecoration(
+                          labelText: 'Email',
+                          prefixIcon: Icon(Icons.email_outlined),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: passwordController,
+                        obscureText: true,
+                        autofillHints: const [AutofillHints.password],
+                        onChanged: (_) => setDialogState(() {}),
+                        decoration: const InputDecoration(
+                          labelText: 'Password',
+                          prefixIcon: Icon(Icons.lock_outline),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                actions: <Widget>[
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red.shade800,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed:
+                        emailController.text.trim().isEmpty ||
+                            passwordController.text.isEmpty
+                        ? null
+                        : () async {
+                            final email = emailController.text.trim();
+                            final password = passwordController.text;
+                            Navigator.of(dialogContext).pop();
+                            await _executeAccountDeletion(email, password);
+                          },
+                    child: const Text('Delete Forever'),
+                  ),
+                ],
+              ),
         ),
-        content: const Text(
-          'Warning: This action is permanent. All your profile data, workout logs, notes, and training history will be permanently deleted and cannot be recovered.',
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade800,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () async {
-              Navigator.of(dialogContext).pop();
-              await _executeAccountDeletion();
-            },
-            child: const Text('Delete Forever'),
-          ),
-        ],
-      ),
-    );
+      );
+    } finally {
+      emailController.dispose();
+      passwordController.dispose();
+    }
   }
 
-  Future<void> _executeAccountDeletion() async {
+  Future<void> _executeAccountDeletion(String email, String password) async {
     setState(() => _isDeletingAccount = true);
     try {
-      final token = await StorageService.getToken();
-      final response = await http.delete(
-        Uri.parse('${ApiConstants.baseUrl}/auth/account'),
-        headers: <String, String>{
-          'Content-Type': 'application/json',
-          if (token != null && token.isNotEmpty)
-            'Authorization': 'Bearer $token',
-        },
+      final result = await AuthService().reauthenticateAndDeleteUserAccount(
+        email,
+        password,
       );
-
-      if (response.statusCode != 200 && response.statusCode != 204) {
+      if (result['success'] != true) {
         throw Exception('Account deletion failed');
       }
 
-      await StorageService.deleteToken();
       if (!mounted) return;
       Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
     } catch (_) {
@@ -228,6 +272,19 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _logOut() async {
+    try {
+      await AuthService().logout();
+      if (!mounted) return;
+      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to log out. Please try again.')),
+      );
     }
   }
 
@@ -447,6 +504,20 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
                   ? null
                   : () => _confirmAndDeleteAccount(context),
             ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.logout, color: Color(0xFFE5A93B)),
+            title: const Text('Log Out', style: TextStyle(color: Colors.white)),
+            subtitle: const Text(
+              'End this session and return to sign in',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+            trailing: const Icon(
+              Icons.arrow_forward_ios,
+              color: Colors.grey,
+              size: 16,
+            ),
+            onTap: _isDeletingAccount ? null : _logOut,
           ),
           _buildSectionHeader('7. About Apex Tactical Performance'),
           Container(
