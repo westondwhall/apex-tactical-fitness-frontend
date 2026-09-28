@@ -29,7 +29,7 @@ class AuthService {
         return {'success': false, 'error': 'Account deletion failed'};
       }
 
-      await StorageService.deleteToken();
+      await logout();
       return {'success': true};
     } catch (e) {
       debugPrint('AuthService account deletion error: $e');
