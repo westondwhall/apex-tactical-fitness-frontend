@@ -91,7 +91,10 @@ class _LoginScreenState extends State {
     if (email == null || email.isEmpty) return;
 
     try {
-      await Supabase.instance.client.auth.resetPasswordForEmail(email);
+      await Supabase.instance.client.auth.resetPasswordForEmail(
+        email,
+        redirectTo: 'apex://reset',
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Check your email for a reset link!')),

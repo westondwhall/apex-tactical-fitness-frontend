@@ -12,6 +12,9 @@ import 'screens/workout_screen.dart';
 import 'screens/analytics_screen.dart';
 import 'screens/logbook_screen.dart';
 import 'screens/notes_screen.dart';
+import 'screens/update_password_screen.dart';
+
+final navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,12 +43,26 @@ class _MyAppState extends State {
   bool _isLoggedIn = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Reacts to the apex://reset deep link opened from the Supabase reset email
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (data.event == AuthChangeEvent.passwordRecovery) {
+        navigatorKey.currentState?.push(
+          MaterialPageRoute(builder: (_) => const UpdatePasswordScreen()),
+        );
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final apiService = ApiService();
 
     return MaterialApp(
       title: 'Apex Tactical Performance',
       debugShowCheckedModeBanner: false,
+      navigatorKey: navigatorKey,
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF1E2228),
